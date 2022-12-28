@@ -20,6 +20,24 @@ model Example {
   updatedAt DateTime @updatedAt
 }
 
+model Artist {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Song      Song[]
+}
+
+model Song {
+  id        String   @id @default(cuid())
+  title     String
+  lyrics    String
+  artist    Artist   @relation(fields: [artistId], references: [id])
+  artistId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Necessary for Next auth
 model Account {
   id                String  @id @default(cuid())
