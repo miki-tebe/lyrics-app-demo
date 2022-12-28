@@ -3,8 +3,10 @@ import NextError from "next/error";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
+import { type inferProcedureInput } from "@trpc/server";
 
 import { trpc } from "../../utils/trpc";
+import { type AppRouter } from "../../server/trpc/router/_app";
 
 const Artist: NextPage = () => {
   const id = useRouter().query.id as string;
@@ -35,10 +37,8 @@ const Artist: NextPage = () => {
           <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-[5rem]">
             {artistQuery.data?.name}
           </h1>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-            <div className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20">
-              <LyricsForm />
-            </div>
+          <div className="rounded-xl border-2 border-white/20 p-4 text-center text-2xl">
+            <LyricsForm id={id} />
           </div>
         </div>
       </main>
@@ -48,14 +48,80 @@ const Artist: NextPage = () => {
 
 export default Artist;
 
-const LyricsForm: React.FC = () => {
+const LyricsForm: React.FC<{ id: string }> = ({ id }) => {
+  const utils = trpc.useContext();
   const { data: sessionData } = useSession();
+
+  const addSong = trpc.song.add.useMutation({
+    async onSuccess() {
+      // refetches songs after a song is added
+      await utils.song.getAll.invalidate();
+    },
+  });
 
   return (
     <div className="flex flex-col items-center justify-center gap-4">
       <p className="text-center text-2xl text-white">
         {sessionData && <span>Logged in as {sessionData.user?.name}</span>}
       </p>
+      <div className="text-center text-2xl text-white">
+        <form
+          onSubmit={async (e) => {
+            /**
+             * In a real app you probably don't want to use this manually
+             * Checkout React Hook Form - it works great with tRPC
+             * @see https://react-hook-form.com/
+             * @see https://kitchen-sink.trpc.io/react-hook-form
+             */
+            e.preventDefault();
+            const $form = e.currentTarget;
+            const values = Object.fromEntries(new FormData($form));
+            type Input = inferProcedureInput<AppRouter["song"]["add"]>;
+            //    ^?
+            const input: Input = {
+              title: values.title as string,
+              lyrics: values.lyrics as string,
+              artistId: id,
+            };
+            try {
+              await addSong.mutateAsync(input);
+
+              $form.reset();
+            } catch (cause) {
+              console.error({ cause }, "Failed to add song");
+            }
+          }}
+        >
+          <label htmlFor="title">Title:</label>
+          <br />
+          <input
+            id="title"
+            name="title"
+            type="text"
+            className="mb-4 w-full text-black"
+            disabled={addSong.isLoading}
+          />
+
+          <br />
+          <label htmlFor="lyrics">Lyrics:</label>
+          <br />
+          <textarea
+            id="lyrics"
+            name="lyrics"
+            className="mb-4 w-full text-black"
+            disabled={addSong.isLoading}
+          />
+          <br />
+          <input
+            type="submit"
+            className="rounded bg-[#2e026d] py-2 px-4 font-bold text-white"
+            disabled={addSong.isLoading}
+          />
+          {addSong.error && (
+            <p style={{ color: "red" }}>{addSong.error.message}</p>
+          )}
+        </form>
+      </div>
     </div>
   );
 };
