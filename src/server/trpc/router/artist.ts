@@ -14,7 +14,7 @@ export const artistRouter = router({
       if (!artist) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: `No post with id '${id}'`,
+          message: `No artist with id '${id}'`,
         });
       }
       return artist;
