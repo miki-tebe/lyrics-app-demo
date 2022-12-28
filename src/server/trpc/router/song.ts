@@ -37,7 +37,11 @@ export const songRouter = router({
       return songs;
     }),
   getAll: publicProcedure.query(({ ctx }) => {
-    return ctx.prisma.song.findMany();
+    return ctx.prisma.song.findMany({
+      include: {
+        artist: true,
+      },
+    });
   }),
   add: protectedProcedure
     .input(
